@@ -2,8 +2,8 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.firefox.service import Service
-from webdriver_manager.firefox import GeckoDriverManager
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 import re
 from time import sleep
 from pprint import pprint
@@ -51,9 +51,9 @@ regiones = [
 ]
 mapaRegionUrls = {f"R{region}": f"{base_url}{region}" for region in regiones}
 
-# Setup Firefox driver
-service = Service(GeckoDriverManager().install())
-driver = webdriver.Firefox(service=service)
+# Setup Chrome driver
+service = Service(ChromeDriverManager().install())
+driver = webdriver.Chrome(service=service)
 
 
 def getRegionStations(regionUrl):
@@ -83,13 +83,11 @@ def getRegionStations(regionUrl):
         print(f"An error occurred: {e}")
 
     try:
-        # Create empty lists to store station data
         estaciones_list = []
         estaciones_ids = []
         estaciones_keys = []
         current_region_code = None
 
-        # Wait for the table rows to be present
         nombresEstaciones = WebDriverWait(driver, 10).until(
             EC.presence_of_all_elements_located(
                 (By.CSS_SELECTOR, selectorNombreEstaciones)
@@ -107,7 +105,6 @@ def getRegionStations(regionUrl):
             link = links.get_attribute("href")
             print(f"\nAnalyzing link: {link}")
 
-            # Get station key
             station_pattern = r"/([IVXRM]+)/([^/]+)/Cal/"
             match = re.search(station_pattern, link)
             if match:
@@ -118,7 +115,6 @@ def getRegionStations(regionUrl):
                 if station_key not in contaminants:
                     contaminants[station_key] = {}
 
-            # Get contaminant code and contaminant graph dates
             contaminant_pattern = r"macro=([^\.]+)\."
             from_pattern = r"\&from=(\d{6})\&"
             to_pattern = r"\&to=(\d{6})\&"
@@ -132,14 +128,12 @@ def getRegionStations(regionUrl):
                 from_date = from_match.group(1) if from_match else None
                 to_date = to_match.group(1) if to_match else None
 
-                # Create nested structure for contaminant data
                 if contaminant_code not in contaminants[station_key]:
                     contaminants[station_key][contaminant_code] = {
                         "from_date": from_date,
                         "to_date": to_date,
                     }
 
-            # Get station id
             id_pattern = r"/id/(\d+)"
             id_match = re.search(id_pattern, link)
             if id_match:
@@ -149,11 +143,9 @@ def getRegionStations(regionUrl):
                 print("No match for station id pattern")
 
         if current_region_code:
-            # Add numberStations to the dictionary
             stations_by_region["numberStations"] = numberStations
             stations_by_region["stations"] = {}
 
-            # Add stations under the stations field
             for i, station_key in enumerate(estaciones_keys):
                 stations_by_region["stations"][estaciones_list[i]] = {
                     "name": estaciones_list[i],
@@ -161,12 +153,10 @@ def getRegionStations(regionUrl):
                     "id": estaciones_ids[i],
                     "contaminants": contaminants[station_key],
                 }
-                # Create graph URL for each contaminant
                 if station_key in contaminants:
                     for contaminant_code, dates in contaminants[station_key].items():
                         from_date = dates["from_date"]
                         to_date = dates["to_date"]
-                        # URL encode the station name
                         encoded_station_name = quote(estaciones_list[i])
                         contaminant_graph_url = (
                             f"https://sinca.mma.gob.cl/cgi-bin/APUB-MMA/apub.htmlindico2.cgi"
@@ -197,11 +187,9 @@ for region_code, region_url in mapaRegionUrls.items():
 
 try:
     path = "./stations"
-    # Save to JSON
     with open(f"{path}/stations_data.json", "w", encoding="utf-8") as f:
         json.dump(stations, f, ensure_ascii=False, indent=4)
     print("Data successfully saved to stations_data.json")
-
 
 except Exception as e:
     print(f"An error occurred: {e}")
