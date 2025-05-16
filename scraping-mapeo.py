@@ -9,11 +9,11 @@ from time import sleep
 from pprint import pprint
 import sys
 import json
-from urllib.parse import quote  # Adding URL encoding functionality
+from urllib.parse import quote
+import os
+
 
 base_url = "https://sinca.mma.gob.cl/index.php/region/index/id/"
-
-# Check if there are more contaminants
 
 mapaContaminanteCodigo = {
     "PM10": "PM10",
@@ -32,22 +32,7 @@ mapaContaminanteCodigo = {
 periodosPromedio = {"diario": "diario", "trimestral": "trimestral", "anual": "anual"}
 
 regiones = [
-    "XV",
-    "I",
-    "II",
-    "III",
-    "IV",
-    "V",
-    "M",
-    "VI",
-    "VII",
-    "XVI",
-    "VIII",
-    "IX",
-    "XIV",
-    "X",
-    "XI",
-    "XII",
+    "XV", "I", "II", "III", "IV", "V", "M", "VI", "VII", "XVI", "VIII", "IX", "XIV", "X", "XI", "XII",
 ]
 mapaRegionUrls = {f"R{region}": f"{base_url}{region}" for region in regiones}
 
@@ -64,15 +49,11 @@ def getRegionStations(regionUrl):
         return
 
     try:
-        # Navigate to the page
         driver.get(regionUrl)
 
-        # Wait for the caption element to be present
         caption = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "caption#tableRows"))
         )
-
-        # Get the caption text and extract just the number
         caption_text = caption.text
         numberStations = caption_text.split(":")[1].strip()
 
@@ -81,6 +62,7 @@ def getRegionStations(regionUrl):
 
     except Exception as e:
         print(f"An error occurred: {e}")
+        return
 
     try:
         estaciones_list = []
@@ -89,14 +71,10 @@ def getRegionStations(regionUrl):
         current_region_code = None
 
         nombresEstaciones = WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located(
-                (By.CSS_SELECTOR, selectorNombreEstaciones)
-            )
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, selectorNombreEstaciones))
         )
         linksGraficos = WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located(
-                (By.CSS_SELECTOR, selectorGraficoEstaciones)
-            )
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, selectorGraficoEstaciones))
         )
 
         estaciones_list = [nombre.text.strip() for nombre in nombresEstaciones]
@@ -169,11 +147,10 @@ def getRegionStations(regionUrl):
                             f'&macro=./{current_region_code}/{station_key}/Cal/{contaminant_code}//{contaminant_code}.diario.{periodosPromedio["anual"]}.ic'
                             f"&limgfrom=&limgto=&limdfrom=&limdto=&rsrc=&stnkey="
                         )
-                        contaminants[station_key][contaminant_code][
-                            "graph_url"
-                        ] = contaminant_graph_url
+                        contaminants[station_key][contaminant_code]["graph_url"] = contaminant_graph_url
         else:
             print("No region code found in the analyzed links")
+
         return stations_by_region
 
     except Exception as e:
@@ -186,12 +163,18 @@ for region_code, region_url in mapaRegionUrls.items():
     stations[region_code] = getRegionStations(region_url)
 
 try:
+    # Crear carpeta "stations" si no existe
     path = "./stations"
-    with open(f"{path}/stations_data.json", "w", encoding="utf-8") as f:
+    os.makedirs(path, exist_ok=True)
+
+    # Guardar archivo JSON
+    with open(os.path.join(path, "stations_data.json"), "w", encoding="utf-8") as f:
         json.dump(stations, f, ensure_ascii=False, indent=4)
+
     print("Data successfully saved to stations_data.json")
 
 except Exception as e:
     print(f"An error occurred: {e}")
+
 finally:
     driver.quit()
